@@ -41,7 +41,6 @@ public class ApplicationService {
     private int successfulCalls = 0;
     private int failedCalls = 0;
 
-
     public ApplicationService(RestTemplate restTemplate) {
         this.restTemplate = restTemplate;
         logger.info("ApplicationService instantiated with RestTemplate.");
@@ -85,18 +84,18 @@ public class ApplicationService {
                     logger.info("Fetched {} application records so far for memberId: {}", applicationUsersList.size(), memberId);
                     if (batch.size() < batchSize) break;
 
-                    retries = 0; 
+                } else {
+                    retries++;
+                    if (retries >= maxRetries) {
+                        logger.error("Max retries reached for memberId: {}", memberId);
+                        throw new RuntimeException("Failed to fetch application details after multiple retries");
+                    }
                 }
 
             } catch (HttpClientErrorException.Unauthorized ex) {
                 failedCalls++;
                 logger.warn("401 Unauthorized for memberId: {}. Refreshing token and retrying...", memberId);
-                token = tokenGenerationService.getToken();  
-                retries++;
-                if (retries >= maxRetries) {
-                    logger.error("Max retries reached for memberId: {} after refreshing token.", memberId);
-                    throw new RuntimeException("Failed to fetch application details after multiple retries due to 401 Unauthorized", ex);
-                }
+                token = tokenGenerationService.getToken();
             } catch (HttpClientErrorException.Forbidden ex) {
                 failedCalls++;
                 handleRateLimitError(memberId, retries++);
@@ -107,7 +106,7 @@ public class ApplicationService {
             }
 
             try {
-                Thread.sleep(initialDelay);  // Adding a delay between retries
+                Thread.sleep(initialDelay);  
             } catch (InterruptedException ie) {
                 Thread.currentThread().interrupt();
                 throw new RuntimeException("Interrupted while waiting for the delay", ie);
@@ -115,12 +114,11 @@ public class ApplicationService {
         }
 
         logger.info("Completed fetching application details for memberId: {}. Total records: {}", memberId, applicationUsersList.size());
-        logger.info("Total successful API calls Application api: {}", successfulCalls);
-        logger.info("Total failed API calls Application api: {}", failedCalls);
+        logger.info("Total successful application API calls: {}", successfulCalls);
+        logger.info("Total failed application API calls: {}", failedCalls);
 
         return applicationUsersList;
     }
-
 
     private void handleRateLimitError(String memberId, int retries) {
         if (retries >= maxRetries) {

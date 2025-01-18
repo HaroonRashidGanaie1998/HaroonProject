@@ -48,7 +48,8 @@ public class PackageKeyService {
         logger.info("PackageKeyService instantiated with RestTemplate.");
     }
 
-    public List<PackageUsers> fetchMembersDataById(String token, String memberId) {
+    public List<PackageUsers> fetchPackageDetailsForMember(String token, String memberId ,String ApplicationId) {
+    	
         if (memberId == null || memberId.isBlank()) {
             throw new IllegalArgumentException("Member ID cannot be null or empty.");
         }
@@ -64,14 +65,17 @@ public class PackageKeyService {
 
             Map<String, String> urlParams = new HashMap<>();
             urlParams.put("memberId", memberId);
+            urlParams.put("applicationId", ApplicationId);
+            String finalUrl = packageUrl.replace("{memberId}", memberId).replace("{applicationID}", ApplicationId);
+            logger.debug("Constructed API URL: {}", finalUrl);
 
             try {
                 ResponseEntity<List<PackageUsers>> response = restTemplate.exchange(
-                        packageUrl,
+                		finalUrl,
                         HttpMethod.GET,
                         entity,
-                        new ParameterizedTypeReference<List<PackageUsers>>() {},
-                        urlParams
+                        new ParameterizedTypeReference<List<PackageUsers>>() {}
+                        
                 );
 
                 if (response.getStatusCode() == HttpStatus.OK) {
@@ -85,7 +89,7 @@ public class PackageKeyService {
                     logger.info("Fetched {} records so far for memberId: {}", packageUsersList.size(), memberId);
                     if (batch.size() < batchSize) break;
 
-                    retries = 0;  // Reset retries on success
+                    retries = 0;  
                 }
 
             } catch (HttpClientErrorException.Unauthorized ex) {

@@ -28,7 +28,8 @@ public class ApplicationUsers {
     private String oauthRedirectUri;
     private boolean subscription;
     private boolean isProductionSubscription;
-    private String company;
+    @JsonProperty("Company")
+    private String Company;
 
     @JsonProperty("Organization_type")
     private String organization_type;
@@ -218,11 +219,11 @@ public class ApplicationUsers {
     }
 
     public String getCompany() {
-        return company;
+        return Company;
     }
 
     public void setCompany(String company) {
-        this.company = company;
+        this.Company = company;
     }
 
     public String getOrganization_type() {

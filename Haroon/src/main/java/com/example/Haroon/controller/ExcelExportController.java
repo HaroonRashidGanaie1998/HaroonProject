@@ -22,12 +22,10 @@ import jakarta.servlet.http.HttpServletResponse;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
-
 
 @RestController
 public class ExcelExportController {
@@ -43,7 +41,7 @@ public class ExcelExportController {
     @Autowired
     private ApplicationService applicationService;
 
-   @Autowired
+    @Autowired
     private PackageKeyService packageKeyService;
 
     private static final String DATE_FORMAT = "yyyy-MM-dd";
@@ -60,7 +58,6 @@ public class ExcelExportController {
         try (SXSSFWorkbook workbook = new SXSSFWorkbook();
              ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream()) {
 
-            // Fetch data and populate workbook
             String token = tokenGenerationService.getToken();
             List<Members> membersList = fetchMembers(token, memberIds);
             logger.info("Fetched {} members from MemberService", membersList.size());
@@ -70,10 +67,8 @@ public class ExcelExportController {
 
             membersList.forEach(member -> populateMemberData(sheet, member, token));
 
-            // Write workbook to buffer
             workbook.write(byteArrayOutputStream);
 
-            // Write buffer to response
             response.setContentType(EXCEL_CONTENT_TYPE);
             response.setHeader("Content-Disposition", "attachment; filename=" + EXCEL_FILE_NAME);
             response.getOutputStream().write(byteArrayOutputStream.toByteArray());
@@ -91,7 +86,6 @@ public class ExcelExportController {
         }
     }
 
-
     private List<Members> fetchMembers(String token, List<String> memberIds) {
         if (memberIds != null && !memberIds.isEmpty()) {
             logger.info("Fetching members for provided member IDs");
@@ -104,59 +98,77 @@ public class ExcelExportController {
 
     private void populateMemberData(Sheet sheet, Members member, String token) {
         String memberId = member.getId();
-        Row row = sheet.createRow(sheet.getPhysicalNumberOfRows() + 1);
-
-       
-        insertMemberBasicData(row, member);
-
-      //  Fetch Application Users and insert data
         List<ApplicationUsers> applicationData = applicationService.fetchApplicationDetailsForMember(memberId, token);
-        insertApplicationData(row, applicationData, memberId);
 
-        // Fetch Package Users and insert data
-        List<PackageUsers> packageData = packageKeyService.fetchMembersDataById(token, memberId);
-        insertPackageData(row, packageData ,memberId);
+        if (applicationData.isEmpty()) {
+            Row row = sheet.createRow(sheet.getPhysicalNumberOfRows());
+            insertMemberBasicData(row, member);
+            insertEmptyApplicationData(row); 
+            insertEmptyPackageData(row);     
+        } else {
+            for (ApplicationUsers application : applicationData) {
+                List<PackageUsers> packageData = packageKeyService.fetchPackageDetailsForMember(token, memberId, application.getId());
+
+                if (packageData.isEmpty()) {
+                    Row row = sheet.createRow(sheet.getPhysicalNumberOfRows());
+                    insertMemberBasicData(row, member);
+                    insertApplicationData(row, application);
+                    insertEmptyPackageData(row);
+                } else {
+                    for (PackageUsers packageUser : packageData) {
+                        Row row = sheet.createRow(sheet.getPhysicalNumberOfRows());
+                        insertMemberBasicData(row, member);
+                        insertApplicationData(row, application);
+                        insertPackageData(row, packageUser);
+                    }
+                }
+            }
+        }
+    }
+
+   
+
+    private void insertApplicationData(Row row, ApplicationUsers application) {
+        String organizationType = application.getOrganization_type();
+        String typeOfInstitution = parseOrganizationType(organizationType);
+        String useCase = getOrDefault(application.getDescription());
+        String institutionOrOrganization = getOrDefault(application.getCompany());
+        row.createCell(4).setCellValue(institutionOrOrganization);
+        row.createCell(6).setCellValue(useCase);
+        row.createCell(8).setCellValue(typeOfInstitution);
+        
+    }
+    private void insertEmptyApplicationData(Row row) {
+    	row.createCell(4).setCellValue("");
+        row.createCell(6).setCellValue(""); 
+        row.createCell(8).setCellValue(""); 
+    }
+
+    private void insertPackageData(Row row, PackageUsers packageUser) {
+        String APIKey = getOrDefault(packageUser.getApikey());
+        String APIKeyStatus = getOrDefault(packageUser.getStatus());
+        row.createCell(7).setCellValue(APIKeyStatus);
+        row.createCell(10).setCellValue(APIKey);
     }
 
     private void insertMemberBasicData(Row row, Members member) {
         String customerName = getOrDefault(member.getFirstName()) + " " + getOrDefault(member.getLastName());
         String date = formatDate(getOrDefault(member.getCreated()));
-        String institutionOrOrganization = getOrDefault(member.getCompany());
+        //String institutionOrOrganization = getOrDefault(member.getCompany());
         String countryOfOrigin = getOrDefault(member.getCountryCode(), member.getRegistrationIpaddr());
         String username = getOrDefault(member.getUsername());
 
         row.createCell(1).setCellValue(date);
         row.createCell(2).setCellValue(getOrDefault(member.getEmail()));
         row.createCell(3).setCellValue(customerName);
-        row.createCell(4).setCellValue(institutionOrOrganization);
+        //row.createCell(4).setCellValue(institutionOrOrganization);
         row.createCell(5).setCellValue(countryOfOrigin);
         row.createCell(9).setCellValue(username);
     }
 
-    private void insertApplicationData(Row row, List<ApplicationUsers> applicationData, String memberId) {
-        if (applicationData != null && !applicationData.isEmpty()) {
-            ApplicationUsers applicationUser = applicationData.get(0);
-            String organizationType = applicationUser.getOrganization_type();
-            String typeOfInstitution = parseOrganizationType(organizationType);
-
-            String useCase = getOrDefault(applicationUser.getDescription());
-            row.createCell(6).setCellValue(useCase);
-            row.createCell(8).setCellValue(typeOfInstitution);
-        } else {
-            logger.warn("No application data found for memberId: {}", memberId);
-        }
-    }
-
-    private void insertPackageData(Row row, List<PackageUsers> packageData ,String memberId ) {
-        if (packageData != null && !packageData.isEmpty()) {
-            PackageUsers packageUser = packageData.get(0);
-            String APIKey = getOrDefault(packageUser.getApikey());
-            String APIKeyStatus = getOrDefault(packageUser.getStatus());
-            row.createCell(7).setCellValue(APIKeyStatus);
-            row.createCell(10).setCellValue(APIKey);
-        }else {
-        	 logger.warn("No package data found for memberId: {}", memberId);
-        }
+    private void insertEmptyPackageData(Row row) {
+        row.createCell(7).setCellValue("");
+        row.createCell(10).setCellValue("");
     }
 
     private String parseOrganizationType(String organizationType) {
@@ -200,7 +212,7 @@ public class ExcelExportController {
     }
 
     private String getOrDefault(String value, String fallbackValue) {
-        return value != null && !value.isEmpty() ? value : fallbackValue != null ? fallbackValue : "N/A";
+        return value != null && !value.isEmpty() ? value : (fallbackValue != null ? fallbackValue : "N/A");
     }
 
     private String formatDate(String date) {
