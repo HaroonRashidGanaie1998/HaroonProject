@@ -1,72 +1,45 @@
 package com.example.Haroon.controller;
 
-import java.io.IOException;
-import java.util.List;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.example.Haroon.service.ExcelExportService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.example.Haroon.model.Members;
-import com.example.Haroon.service.ApiService;
-import com.example.Haroon.service.TokenGenerationService;
-
 import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.List;
 
 @RestController
 public class ExcelExportController {
 
-    private static final Logger logger = LoggerFactory.getLogger(ExcelExportController.class);
-
     @Autowired
-    ApiService apiService;
-    
-    @Autowired
-    TokenGenerationService tokenGenerationService;
+    private ExcelExportService excelExportService;
 
+    // Define the date format pattern
+    private static final String DATE_FORMAT = "yyyy/MM/dd_HH-mm-ss";
+ 
     @GetMapping("/downloadExcel")
-    public void downloadExcel(HttpServletResponse response) {
+    public void downloadExcel(HttpServletResponse response, 
+                              @RequestParam(required = false) List<String> memberIds) {
         try {
-            String token = tokenGenerationService.getToken();
-            List<Members> members = apiService.fetchMembersInBatches(token);
-            byte[] excelFile = apiService.generateLargeExcelFile(members);
+            byte[] excelFile = excelExportService.generateExcelReport(memberIds);       
+            String timestamp = new SimpleDateFormat(DATE_FORMAT).format(new Date());
+            String excelFileName = "IEEE_Mashery_Report_" + timestamp + ".xlsx";
+
             response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-            response.setHeader("Content-Disposition", "attachment; filename=MembersData.xlsx");
+            response.setHeader("Content-Disposition", "attachment; filename=" + excelFileName);
             response.getOutputStream().write(excelFile);
-            response.flushBuffer();
+
         } catch (Exception e) {
-            logger.error("Error during Excel download: ", e);
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
             try {
-                response.getWriter().write("Error during Excel file generation.");
+                response.getWriter().write("Error generating the Excel report.");
             } catch (IOException ioException) {
-                logger.error("Error writing response: ", ioException);
+                ioException.printStackTrace();
             }
         }
     }
-
-//    @GetMapping("/downloadExcelZip")
-//    public void downloadExcelZip(HttpServletResponse response) {
-//        try {
-//            String token = tokenGenerationService.getToken();
-//            List<Members> members = apiService.fetchAllMembers(token);
-//
-//            // Generate ZIP file
-//            byte[] zipData = apiService.generateBatchExcelAndZip(members);
-//
-//            // Configure response headers for ZIP file
-//            response.setContentType("application/zip");
-//            response.setHeader("Content-Disposition", "attachment; filename=MembersData.zip");
-//
-//            // Write ZIP data to response
-//            response.getOutputStream().write(zipData);
-//            response.getOutputStream().flush();
-//        } catch (Exception e) {
-//            logger.error("Error during ZIP download: ", e);
-//        }
-//    }
-
-    }
-    
+}
