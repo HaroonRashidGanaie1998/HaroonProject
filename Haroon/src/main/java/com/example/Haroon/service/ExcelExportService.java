@@ -105,13 +105,13 @@ public class ExcelExportService {
     private void insertMemberBasicData(Row row, Members member) {
         String customerName = getOrDefault(member.getFirstName()) + " " + getOrDefault(member.getLastName());
         String date = formatDate(getOrDefault(member.getCreated()));
-        String countryOfOrigin = getOrDefault(member.getCountryCode(), member.getRegistrationIpaddr());
+        String countryOfOrigin_IpAddress = getOrDefault(member.getCountryCode(), member.getRegistrationIpaddr());
         String username = getOrDefault(member.getUsername());
 
         row.createCell(1).setCellValue(date);
         row.createCell(2).setCellValue(getOrDefault(member.getEmail()));
         row.createCell(3).setCellValue(customerName);
-        row.createCell(5).setCellValue(countryOfOrigin);
+        row.createCell(5).setCellValue(countryOfOrigin_IpAddress);
         row.createCell(9).setCellValue(username);
     }
 

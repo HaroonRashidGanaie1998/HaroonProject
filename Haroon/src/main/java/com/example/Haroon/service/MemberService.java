@@ -60,7 +60,7 @@ public class MemberService {
             logger.info("Fetched {} members in the current batch, total fetched so far: {}", batch.size(), allMembers.size());
 
            
-            offset += 1;
+            offset += batchSize;
 
             
             if (batch.size() < batchSize) {

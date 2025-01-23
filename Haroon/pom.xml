@@ -15,16 +15,16 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.0.0</version> <!-- Confirm compatibility with your dependencies -->
+        <version>3.0.0</version>
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
 
     <properties>
-        <java.version>17</java.version> <!-- Ensure compatibility with Java 17 -->
+        <java.version>17</java.version>
     </properties>
 
     <dependencies>
-        <!-- Spring Boot dependencies -->
+        <!-- Spring Boot Starter Web -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
@@ -34,7 +34,7 @@
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>s3</artifactId>
-            <version>2.20.16</version> <!-- Use the latest stable version -->
+            <version>2.20.16</version>
         </dependency>
 
         <!-- AWS SDK v2 for credentials -->
@@ -49,8 +49,6 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-mail</artifactId>
         </dependency>
-
-        <!-- Jakarta Mail API (modern alternative to javax.mail) -->
 
         <!-- Spring Boot Starter Validation -->
         <dependency>
@@ -81,18 +79,12 @@
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
-             <!-- Choose a compatible version with SLF4J 2.0 -->
-        </dependency>
-        <dependency>
-           <groupId>org.springframework.boot</groupId>
-           <artifactId>spring-boot-starter-mail</artifactId>
         </dependency>
 
         <!-- Jackson Datatype for Java 8 Date/Time API -->
         <dependency>
             <groupId>com.fasterxml.jackson.datatype</groupId>
             <artifactId>jackson-datatype-jsr310</artifactId>
-             <!-- Ensure this matches your Jackson version -->
         </dependency>
     </dependencies>
 
