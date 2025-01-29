@@ -8,6 +8,7 @@ import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RestTemplate;
 import com.example.Haroon.model.ApplicationUsers;
 
@@ -96,9 +97,17 @@ public class ApplicationService {
                 failedCalls++;
                 logger.warn("401 Unauthorized for memberId: {}. Refreshing token and retrying...", memberId);
                 token = tokenGenerationService.getToken();
+                retries++;
+                if (retries >= maxRetries) {
+                    logger.error("Max retries reached for memberId: {} after refreshing token.", memberId);
+                    throw new RuntimeException("Failed to fetch application details after multiple retries due to 401 Unauthorized", ex);
+                }
             } catch (HttpClientErrorException.Forbidden ex) {
                 failedCalls++;
                 handleRateLimitError(memberId, retries++);
+            } catch (HttpServerErrorException ex) {
+                failedCalls++;
+                handleServerError(memberId, ex, retries++);
             } catch (Exception ex) {
                 failedCalls++;
                 logger.error("Unexpected error fetching data from API for memberId: {}", memberId, ex);
@@ -131,6 +140,22 @@ public class ApplicationService {
 
         try {
             Thread.sleep(backoffTime);
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("Interrupted while waiting for retry", ie);
+        }
+    }
+
+    private void handleServerError(String memberId, HttpServerErrorException ex, int retries) {
+        if (retries >= maxRetries) {
+            logger.error("Max retries reached for memberId: {}, giving up after server error.", memberId);
+            throw new RuntimeException("Failed to fetch application details after multiple retries due to server error", ex);
+        }
+
+        logger.warn("Server error encountered for memberId: {}. Status: {}. Retrying in {} ms...", memberId, ex.getStatusCode(), initialDelay);
+
+        try {
+            Thread.sleep(initialDelay);
         } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();
             throw new RuntimeException("Interrupted while waiting for retry", ie);

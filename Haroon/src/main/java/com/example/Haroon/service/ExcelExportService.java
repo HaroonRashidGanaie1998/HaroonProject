@@ -29,6 +29,9 @@ public class ExcelExportService {
     
     @Autowired
     private TokenGenerationService tokenGenerationService;
+    
+    @Autowired
+    private IPGeolocationService ipGeolocationService;
 
     private static final String DATE_FORMAT = "yyyy-MM-dd";
 
@@ -89,29 +92,30 @@ public class ExcelExportService {
     }
 
     private void createHeaderRow(Sheet sheet) {
+        String[] headers = {
+            "Date", "Email", "Customer Name", "Institution/Organization",
+            "Country of Origin", "Use Case", "API Key Status", 
+            "Type of Institution", "User Name", "API Key"
+        };
         Row headerRow = sheet.createRow(0);
-        headerRow.createCell(1).setCellValue("Date");
-        headerRow.createCell(2).setCellValue("Email");
-        headerRow.createCell(3).setCellValue("Customer Name");
-        headerRow.createCell(4).setCellValue("Institution/Organization");
-        headerRow.createCell(5).setCellValue("Country of Origin");
-        headerRow.createCell(6).setCellValue("Use Case");
-        headerRow.createCell(7).setCellValue("API Key Status");
-        headerRow.createCell(8).setCellValue("Type of Institution");
-        headerRow.createCell(9).setCellValue("User Name");
-        headerRow.createCell(10).setCellValue("API Key");
+        for (int i = 0; i < headers.length; i++) {
+            headerRow.createCell(i + 1).setCellValue(headers[i]);
+        }
     }
 
     private void insertMemberBasicData(Row row, Members member) {
         String customerName = getOrDefault(member.getFirstName()) + " " + getOrDefault(member.getLastName());
         String date = formatDate(getOrDefault(member.getCreated()));
-        String countryOfOrigin_IpAddress = getOrDefault(member.getCountryCode(), member.getRegistrationIpaddr());
         String username = getOrDefault(member.getUsername());
+        String ipAddress = member.getRegistrationIpaddr();
+        String countryOfOrigin = ipGeolocationService.getCountryFromIP(ipAddress); 
+        
+        
 
         row.createCell(1).setCellValue(date);
         row.createCell(2).setCellValue(getOrDefault(member.getEmail()));
         row.createCell(3).setCellValue(customerName);
-        row.createCell(5).setCellValue(countryOfOrigin_IpAddress);
+        row.createCell(5).setCellValue(countryOfOrigin);
         row.createCell(9).setCellValue(username);
     }
 
@@ -145,9 +149,7 @@ public class ExcelExportService {
         return value != null ? value : "N/A";
     }
 
-    private String getOrDefault(String value, String fallbackValue) {
-        return value != null && !value.isEmpty() ? value : (fallbackValue != null ? fallbackValue : "N/A");
-    }
+
 
     private String formatDate(String date) {
         try {

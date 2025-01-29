@@ -169,18 +169,4 @@ public class MemberService {
         return startRowIndex;
     }
 
-    public void saveExcelFileToLocal(byte[] excelData, String filePath) {
-        Logger logger = LoggerFactory.getLogger(ApplicationService.class);
-
-        // Path to save the Excel file
-        String savePath = "C:\\Excelfile\\";
-        String fullFilePath = savePath + filePath;
-
-        try (FileOutputStream fos = new FileOutputStream(new File(fullFilePath))) {
-            fos.write(excelData);
-            logger.info("Excel file saved successfully at: {}", fullFilePath);
-        } catch (IOException e) {
-            logger.error("Failed to save Excel file at {}: {}", fullFilePath, e.getMessage(), e);
-        }
-}
 }

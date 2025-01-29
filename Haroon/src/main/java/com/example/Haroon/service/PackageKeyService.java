@@ -8,6 +8,7 @@ import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RestTemplate;
 import com.example.Haroon.model.PackageUsers;
 
@@ -49,7 +50,7 @@ public class PackageKeyService {
     }
 
     public List<PackageUsers> fetchPackageDetailsForMember(String token, String memberId ,String ApplicationId) {
-    	
+        
         if (memberId == null || memberId.isBlank()) {
             throw new IllegalArgumentException("Member ID cannot be null or empty.");
         }
@@ -71,11 +72,10 @@ public class PackageKeyService {
 
             try {
                 ResponseEntity<List<PackageUsers>> response = restTemplate.exchange(
-                		finalUrl,
+                        finalUrl,
                         HttpMethod.GET,
                         entity,
                         new ParameterizedTypeReference<List<PackageUsers>>() {}
-                        
                 );
 
                 if (response.getStatusCode() == HttpStatus.OK) {
@@ -89,7 +89,7 @@ public class PackageKeyService {
                     logger.info("Fetched {} records so far for memberId: {}", packageUsersList.size(), memberId);
                     if (batch.size() < batchSize) break;
 
-                    retries = 0;  
+                    retries = 0;  // Reset retries on successful call
                 }
 
             } catch (HttpClientErrorException.Unauthorized ex) {
@@ -104,6 +104,9 @@ public class PackageKeyService {
             } catch (HttpClientErrorException.Forbidden ex) {
                 failedCalls++;
                 handleRateLimitError(memberId, retries++);
+            } catch (HttpServerErrorException.BadGateway ex) {
+                failedCalls++;
+                handleServerError(memberId, retries++, ex);
             } catch (Exception ex) {
                 failedCalls++;
                 logger.error("Unexpected error fetching data for memberId: {}", memberId, ex);
@@ -125,8 +128,6 @@ public class PackageKeyService {
         return packageUsersList;
     }
 
-
-
     private void handleRateLimitError(String memberId, int retries) {
         if (retries >= maxRetries) {
             logger.error("Max retries reached for memberId: {}, giving up.", memberId);
@@ -135,6 +136,23 @@ public class PackageKeyService {
 
         long backoffTime = (long) Math.pow(2, retries) * initialDelay;
         logger.warn("Rate limit exceeded for memberId: {}. Retrying in {} ms...", memberId, backoffTime);
+
+        try {
+            Thread.sleep(backoffTime);
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("Interrupted while waiting for retry", ie);
+        }
+    }
+
+    private void handleServerError(String memberId, int retries, HttpServerErrorException.BadGateway ex) {
+        if (retries >= maxRetries) {
+            logger.error("Max retries reached for memberId: {}, giving up.", memberId);
+            throw new RuntimeException("Failed to fetch package details after multiple retries due to 502 Bad Gateway", ex);
+        }
+
+        long backoffTime = (long) Math.pow(2, retries) * initialDelay;
+        logger.warn("502 Bad Gateway error for memberId: {}. Retrying in {} ms...", memberId, backoffTime);
 
         try {
             Thread.sleep(backoffTime);
